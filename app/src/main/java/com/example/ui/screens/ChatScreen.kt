@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.SelfImprovement
@@ -378,6 +379,7 @@ private fun EmbeddedResponseCard(
         ResponseCardType.TIMER_STARTED -> Icons.Rounded.Timer to MaterialTheme.colorScheme.secondary
         ResponseCardType.THEME_CHANGED -> Icons.Rounded.DarkMode to MaterialTheme.colorScheme.primary
         ResponseCardType.BREATHING_GUIDE -> Icons.Rounded.SelfImprovement to MaterialTheme.colorScheme.secondary
+        ResponseCardType.VOICE_CAPTURED -> Icons.Rounded.GraphicEq to MaterialTheme.colorScheme.secondary
         ResponseCardType.NONE -> Icons.Rounded.AutoAwesome to MaterialTheme.colorScheme.primary
     }
 

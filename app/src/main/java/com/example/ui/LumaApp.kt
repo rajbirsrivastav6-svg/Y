@@ -57,6 +57,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.data.InteractionModality
+import com.example.engine.VoiceAudioPlayer
 import com.example.engine.VoiceController
 import com.example.ui.components.CosmicBackground
 import com.example.ui.components.OfflineBadgePill
@@ -104,6 +105,8 @@ fun LumaApp(viewModel: LumaViewModel) {
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     val memories by viewModel.memories.collectAsStateWithLifecycle()
     val vaultInteractions by viewModel.vaultInteractions.collectAsStateWithLifecycle()
+    val voiceClips by viewModel.voiceClips.collectAsStateWithLifecycle()
+    val recorderState by viewModel.recorderState.collectAsStateWithLifecycle()
     val timerState by viewModel.timerState.collectAsStateWithLifecycle()
 
     val voiceController = remember(context) {
@@ -111,7 +114,9 @@ fun LumaApp(viewModel: LumaViewModel) {
             viewModel.sendMessage(recognizedText, modality = InteractionModality.VOICE)
         }
     }
+    val voiceAudioPlayer = remember { VoiceAudioPlayer() }
     val voiceState by voiceController.voiceState.collectAsStateWithLifecycle()
+    val playingFilePath by voiceAudioPlayer.playingFilePath.collectAsStateWithLifecycle()
 
     LaunchedEffect(preferences.speechRate) {
         voiceController.updateSpeechRate(preferences.speechRate)
@@ -126,6 +131,7 @@ fun LumaApp(viewModel: LumaViewModel) {
     DisposableEffect(Unit) {
         onDispose {
             voiceController.release()
+            voiceAudioPlayer.release()
         }
     }
 
@@ -292,10 +298,30 @@ fun LumaApp(viewModel: LumaViewModel) {
                         composable(ROUTE_VOICE) {
                             VoiceOrbScreen(
                                 voiceState = voiceState,
+                                recorderState = recorderState,
+                                voiceClips = voiceClips,
+                                playingFilePath = playingFilePath,
                                 autoSpeak = preferences.autoSpeak,
                                 latestAssistantMessage = messages.lastOrNull(),
-                                onStartListening = { voiceController.startListening() },
+                                onStartListening = {
+                                    voiceAudioPlayer.stop()
+                                    voiceController.startListening()
+                                },
                                 onStopListening = { voiceController.stopListening() },
+                                onStartRecording = {
+                                    voiceAudioPlayer.stop()
+                                    voiceController.stopSpeaking()
+                                    voiceController.stopListening()
+                                    viewModel.startVoiceRecording()
+                                },
+                                onStopRecording = { viewModel.stopVoiceRecording() },
+                                onCancelRecording = { viewModel.cancelVoiceRecording() },
+                                onClearRecorderError = { viewModel.clearVoiceRecorderError() },
+                                onToggleClipPlayback = { path -> voiceAudioPlayer.togglePlayback(path) },
+                                onDeleteVoiceClip = { clip ->
+                                    if (playingFilePath == clip.filePath) voiceAudioPlayer.stop()
+                                    viewModel.deleteVoiceClip(clip)
+                                },
                                 onStopSpeaking = { voiceController.stopSpeaking() },
                                 onToggleAutoSpeak = { enabled ->
                                     viewModel.setAutoSpeak(enabled)
@@ -314,6 +340,8 @@ fun LumaApp(viewModel: LumaViewModel) {
                                 notes = notes,
                                 memories = memories,
                                 interactions = vaultInteractions,
+                                voiceClips = voiceClips,
+                                playingFilePath = playingFilePath,
                                 onAddTask = { title, priority -> viewModel.addTask(title, priority) },
                                 onToggleTask = { viewModel.toggleTask(it) },
                                 onDeleteTask = { viewModel.deleteTask(it) },
@@ -323,6 +351,11 @@ fun LumaApp(viewModel: LumaViewModel) {
                                 onDeleteMemory = { viewModel.deleteMemory(it) },
                                 onToggleInteractionPin = { viewModel.toggleInteractionPin(it) },
                                 onDeleteInteraction = { viewModel.deleteVaultInteraction(it) },
+                                onToggleClipPlayback = { path -> voiceAudioPlayer.togglePlayback(path) },
+                                onDeleteVoiceClip = { clip ->
+                                    if (playingFilePath == clip.filePath) voiceAudioPlayer.stop()
+                                    viewModel.deleteVoiceClip(clip)
+                                },
                                 onSpeakText = { voiceController.speak(it) }
                             )
                         }

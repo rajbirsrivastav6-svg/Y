@@ -16,7 +16,11 @@ import com.example.data.TaskEntity
 import com.example.data.ThemeMode
 import com.example.data.UserPreferences
 import com.example.data.VaultInteractionEntity
+import com.example.data.VoiceClipEntity
 import com.example.engine.OfflineAssistantEngine
+import com.example.engine.VoiceRecorderBus
+import com.example.engine.VoiceRecorderState
+import com.example.engine.VoiceRecorderService
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -26,8 +30,12 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 data class TimerState(
     val isActive: Boolean = false,
@@ -46,7 +54,8 @@ class LumaViewModel(application: Application) : AndroidViewModel(application) {
         taskDao = database.taskDao(),
         noteDao = database.noteDao(),
         memoryDao = database.memoryDao(),
-        vaultInteractionDao = database.vaultInteractionDao()
+        vaultInteractionDao = database.vaultInteractionDao(),
+        voiceClipDao = database.voiceClipDao()
     )
     private val settingsRepository = SettingsRepository(application)
     private val engine = OfflineAssistantEngine(repository)
@@ -93,6 +102,15 @@ class LumaViewModel(application: Application) : AndroidViewModel(application) {
             initialValue = emptyList()
         )
 
+    val voiceClips: StateFlow<List<VoiceClipEntity>> = repository.voiceClips
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val recorderState: StateFlow<VoiceRecorderState> = VoiceRecorderBus.state
+
     private val _timerState = MutableStateFlow(TimerState())
     val timerState: StateFlow<TimerState> = _timerState.asStateFlow()
 
@@ -100,6 +118,53 @@ class LumaViewModel(application: Application) : AndroidViewModel(application) {
     val speakEvents: SharedFlow<String> = _speakEvents.asSharedFlow()
 
     private var timerJob: Job? = null
+
+    init {
+        viewModelScope.launch {
+            VoiceRecorderBus.completedClips.collectLatest { clip ->
+                val seconds = ((clip.durationMs + 500L) / 1000L).coerceAtLeast(1L)
+                val durationLabel = formatClipDuration(clip.durationMs)
+                val timeLabel = SimpleDateFormat("MMM d, hh:mm a", Locale.getDefault()).format(Date(clip.createdAt))
+                val title = "Voice Input • $timeLabel"
+
+                repository.saveVoiceClip(
+                    title = title,
+                    filePath = clip.filePath,
+                    durationMs = clip.durationMs,
+                    createdAt = clip.createdAt
+                )
+
+                val userPrompt = "Recorded voice input ($durationLabel)"
+                val assistantReply = "Captured your ${seconds}s offline voice input and saved it to your Vault. Tap play anytime to listen."
+                repository.saveMessage(
+                    ChatMessageEntity(
+                        sender = MessageSender.USER.name,
+                        text = userPrompt
+                    )
+                )
+                repository.saveMessage(
+                    ChatMessageEntity(
+                        sender = MessageSender.LUMA.name,
+                        text = assistantReply,
+                        cardType = ResponseCardType.VOICE_CAPTURED.name,
+                        cardTitle = title,
+                        cardSubtitle = "Duration: $durationLabel • Saved locally (.m4a)"
+                    )
+                )
+                repository.saveVaultInteraction(
+                    userPrompt = userPrompt,
+                    assistantReply = assistantReply,
+                    cardType = ResponseCardType.VOICE_CAPTURED,
+                    cardTitle = title,
+                    modality = InteractionModality.VOICE
+                )
+
+                if (preferences.value.autoSpeak) {
+                    _speakEvents.tryEmit(assistantReply)
+                }
+            }
+        }
+    }
 
     fun sendMessage(
         rawText: String,
@@ -257,6 +322,35 @@ class LumaViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             repository.clearUnpinnedInteractions()
         }
+    }
+
+    fun startVoiceRecording() {
+        VoiceRecorderService.startRecording(getApplication())
+    }
+
+    fun stopVoiceRecording() {
+        VoiceRecorderService.stopRecording(getApplication())
+    }
+
+    fun cancelVoiceRecording() {
+        VoiceRecorderService.cancelRecording(getApplication())
+    }
+
+    fun clearVoiceRecorderError() {
+        VoiceRecorderBus.clearError()
+    }
+
+    fun deleteVoiceClip(clip: VoiceClipEntity) {
+        viewModelScope.launch {
+            repository.deleteVoiceClip(clip)
+        }
+    }
+
+    private fun formatClipDuration(durationMs: Long): String {
+        val totalSecs = (durationMs / 1000L).coerceAtLeast(1L)
+        val mins = totalSecs / 60L
+        val secs = totalSecs % 60L
+        return String.format(Locale.getDefault(), "%02d:%02d", mins, secs)
     }
 
     fun startTimer(seconds: Int, label: String = "Focus Timer") {

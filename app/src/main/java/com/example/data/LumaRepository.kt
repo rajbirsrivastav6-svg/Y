@@ -1,19 +1,22 @@
 package com.example.data
 
 import kotlinx.coroutines.flow.Flow
+import java.io.File
 
 class LumaRepository(
     private val chatDao: ChatDao,
     private val taskDao: TaskDao,
     private val noteDao: NoteDao,
     private val memoryDao: MemoryDao,
-    private val vaultInteractionDao: VaultInteractionDao
+    private val vaultInteractionDao: VaultInteractionDao,
+    private val voiceClipDao: VoiceClipDao
 ) {
     val chatMessages: Flow<List<ChatMessageEntity>> = chatDao.observeMessages()
     val tasks: Flow<List<TaskEntity>> = taskDao.observeTasks()
     val notes: Flow<List<NoteEntity>> = noteDao.observeNotes()
     val memories: Flow<List<MemoryEntity>> = memoryDao.observeMemories()
     val vaultInteractions: Flow<List<VaultInteractionEntity>> = vaultInteractionDao.observeInteractions()
+    val voiceClips: Flow<List<VoiceClipEntity>> = voiceClipDao.observeVoiceClips()
 
     suspend fun saveMessage(message: ChatMessageEntity) {
         chatDao.insertMessage(message)
@@ -96,4 +99,25 @@ class LumaRepository(
     }
 
     suspend fun getAllMemories(): List<MemoryEntity> = memoryDao.getAllMemoriesSnapshot()
+
+    suspend fun saveVoiceClip(
+        title: String,
+        filePath: String,
+        durationMs: Long,
+        createdAt: Long = System.currentTimeMillis()
+    ): VoiceClipEntity {
+        val entity = VoiceClipEntity(
+            title = title.trim(),
+            filePath = filePath,
+            durationMs = durationMs,
+            createdAt = createdAt
+        )
+        val id = voiceClipDao.insertVoiceClip(entity)
+        return entity.copy(id = id)
+    }
+
+    suspend fun deleteVoiceClip(clip: VoiceClipEntity) {
+        voiceClipDao.deleteVoiceClipById(clip.id)
+        runCatching { File(clip.filePath).delete() }
+    }
 }

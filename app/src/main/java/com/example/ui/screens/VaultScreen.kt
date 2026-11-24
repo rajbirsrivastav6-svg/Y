@@ -22,25 +22,29 @@ import androidx.compose.material.icons.automirrored.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.rounded.EditNote
+import androidx.compose.material.icons.rounded.GraphicEq
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material.icons.rounded.PushPin
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.TaskAlt
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -65,6 +69,7 @@ import com.example.data.MemoryEntity
 import com.example.data.NoteEntity
 import com.example.data.TaskEntity
 import com.example.data.VaultInteractionEntity
+import com.example.data.VoiceClipEntity
 import com.example.ui.theme.LocalLumaColors
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -76,6 +81,8 @@ fun VaultScreen(
     notes: List<NoteEntity>,
     memories: List<MemoryEntity>,
     interactions: List<VaultInteractionEntity>,
+    voiceClips: List<VoiceClipEntity>,
+    playingFilePath: String?,
     onAddTask: (String, Boolean) -> Unit,
     onToggleTask: (TaskEntity) -> Unit,
     onDeleteTask: (Long) -> Unit,
@@ -85,6 +92,8 @@ fun VaultScreen(
     onDeleteMemory: (Long) -> Unit,
     onToggleInteractionPin: (VaultInteractionEntity) -> Unit,
     onDeleteInteraction: (Long) -> Unit,
+    onToggleClipPlayback: (String) -> Unit,
+    onDeleteVoiceClip: (VoiceClipEntity) -> Unit,
     onSpeakText: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -93,7 +102,7 @@ fun VaultScreen(
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
 
-    val tabs = listOf("History", "Tasks", "Notes", "Facts")
+    val tabs = listOf("History", "Voice", "Tasks", "Notes", "Facts")
 
     val filteredInteractions = remember(interactions, searchQuery) {
         if (searchQuery.isBlank()) interactions
@@ -102,6 +111,10 @@ fun VaultScreen(
                 it.assistantReply.contains(searchQuery, ignoreCase = true) ||
                 it.cardTitle.contains(searchQuery, ignoreCase = true)
         }
+    }
+    val filteredVoiceClips = remember(voiceClips, searchQuery) {
+        if (searchQuery.isBlank()) voiceClips
+        else voiceClips.filter { it.title.contains(searchQuery, ignoreCase = true) }
     }
     val filteredTasks = remember(tasks, searchQuery) {
         if (searchQuery.isBlank()) tasks
@@ -133,16 +146,31 @@ fun VaultScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+            ) {
                 tabs.forEachIndexed { index, label ->
-                    SegmentedButton(
+                    FilterChip(
                         selected = selectedTab == index,
                         onClick = { selectedTab = index },
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = tabs.size),
+                        label = { Text(label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            containerColor = lumaColors.glassSurface,
+                            labelColor = MaterialTheme.colorScheme.onSurface
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selectedTab == index,
+                            borderColor = lumaColors.glassBorder,
+                            selectedBorderColor = MaterialTheme.colorScheme.primary
+                        ),
                         modifier = Modifier.testTag("vault_tab_${label.lowercase()}")
-                    ) {
-                        Text(label)
-                    }
+                    )
                 }
             }
 
@@ -197,6 +225,78 @@ fun VaultScreen(
                 }
 
                 1 -> {
+                    if (filteredVoiceClips.isEmpty()) {
+                        VaultEmptyState(
+                            icon = Icons.Rounded.GraphicEq,
+                            title = "No voice recordings yet",
+                            subtitle = "Use Voice Capture on the Voice Orb screen to record offline audio inputs with MediaRecorder.",
+                            modifier = Modifier.weight(1f)
+                        )
+                    } else {
+                        LazyColumn(
+                            contentPadding = PaddingValues(bottom = 84.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            items(filteredVoiceClips, key = { it.id }) { clip ->
+                                val isPlaying = playingFilePath == clip.filePath
+                                val secs = (clip.durationMs / 1000L).coerceAtLeast(1L)
+                                val durationLabel = String.format(Locale.getDefault(), "%02d:%02d", secs / 60L, secs % 60L)
+                                Surface(
+                                    shape = MaterialTheme.shapes.medium,
+                                    color = lumaColors.glassSurface,
+                                    border = BorderStroke(
+                                        width = 1.dp,
+                                        color = if (isPlaying) MaterialTheme.colorScheme.secondary else lumaColors.glassBorder
+                                    ),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+                                    ) {
+                                        IconButton(
+                                            onClick = { onToggleClipPlayback(clip.filePath) },
+                                            modifier = Modifier.testTag("vault_voice_play_${clip.id}")
+                                        ) {
+                                            Icon(
+                                                imageVector = if (isPlaying) Icons.Rounded.Stop else Icons.Rounded.PlayArrow,
+                                                contentDescription = if (isPlaying) "Stop playback" else "Play voice recording",
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = clip.title,
+                                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = "Recorded Audio • $durationLabel",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = { onDeleteVoiceClip(clip) },
+                                            modifier = Modifier.testTag("vault_voice_delete_${clip.id}")
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.DeleteOutline,
+                                                contentDescription = "Delete voice recording",
+                                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                2 -> {
                     if (filteredTasks.isEmpty()) {
                         VaultEmptyState(
                             icon = Icons.Rounded.TaskAlt,
@@ -259,7 +359,7 @@ fun VaultScreen(
                     }
                 }
 
-                2 -> {
+                3 -> {
                     if (filteredNotes.isEmpty()) {
                         VaultEmptyState(
                             icon = Icons.Rounded.EditNote,
@@ -375,7 +475,7 @@ fun VaultScreen(
             }
         }
 
-        if (selectedTab != 0) {
+        if (selectedTab >= 2) {
             FloatingActionButton(
                 onClick = { showAddDialog = true },
                 containerColor = MaterialTheme.colorScheme.primary,
@@ -395,7 +495,7 @@ fun VaultScreen(
 
     if (showAddDialog) {
         AddVaultItemDialog(
-            tabIndex = (selectedTab - 1).coerceAtLeast(0),
+            tabIndex = (selectedTab - 2).coerceAtLeast(0),
             onDismiss = { showAddDialog = false },
             onSaveTask = { title, priority ->
                 onAddTask(title, priority)

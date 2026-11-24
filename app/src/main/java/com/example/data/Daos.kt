@@ -94,3 +94,15 @@ interface VaultInteractionDao {
     @Query("DELETE FROM vault_interactions WHERE isPinned = 0")
     suspend fun clearUnpinnedInteractions()
 }
+
+@Dao
+interface VoiceClipDao {
+    @Query("SELECT * FROM voice_clips ORDER BY createdAt DESC")
+    fun observeVoiceClips(): Flow<List<VoiceClipEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertVoiceClip(clip: VoiceClipEntity): Long
+
+    @Query("DELETE FROM voice_clips WHERE id = :id")
+    suspend fun deleteVoiceClipById(id: Long)
+}

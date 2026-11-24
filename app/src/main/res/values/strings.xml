@@ -10,4 +10,9 @@
     <string name="speaking_status">Luma is speaking…</string>
     <string name="offline_badge">Offline Ready</string>
     <string name="ask_anything_hint">Ask anything offline…</string>
+    <string name="voice_service_channel_name">Voice Capture</string>
+    <string name="voice_service_channel_description">Ongoing status while Luma records offline voice input</string>
+    <string name="voice_service_notification_title">Luma Voice Capture</string>
+    <string name="voice_service_notification_text">Recording offline voice input…</string>
+    <string name="voice_service_stop_action">Stop</string>
 </resources>

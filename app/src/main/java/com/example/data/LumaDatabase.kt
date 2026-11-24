@@ -13,9 +13,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         TaskEntity::class,
         NoteEntity::class,
         MemoryEntity::class,
-        VaultInteractionEntity::class
+        VaultInteractionEntity::class,
+        VoiceClipEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class LumaDatabase : RoomDatabase() {
@@ -24,6 +25,7 @@ abstract class LumaDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun memoryDao(): MemoryDao
     abstract fun vaultInteractionDao(): VaultInteractionDao
+    abstract fun voiceClipDao(): VoiceClipDao
 
     companion object {
         @Volatile
@@ -48,6 +50,22 @@ abstract class LumaDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `voice_clips` (
+                        `id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        `title` TEXT NOT NULL,
+                        `filePath` TEXT NOT NULL,
+                        `durationMs` INTEGER NOT NULL,
+                        `createdAt` INTEGER NOT NULL
+                    )
+                    """.trimIndent()
+                )
+            }
+        }
+
         fun getInstance(context: Context): LumaDatabase {
             return INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -55,7 +73,7 @@ abstract class LumaDatabase : RoomDatabase() {
                     LumaDatabase::class.java,
                     "luma_offline.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { INSTANCE = it }
             }

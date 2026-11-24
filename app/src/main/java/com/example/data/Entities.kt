@@ -17,7 +17,8 @@ enum class ResponseCardType {
     MEMORY_SAVED,
     TIMER_STARTED,
     THEME_CHANGED,
-    BREATHING_GUIDE
+    BREATHING_GUIDE,
+    VOICE_CAPTURED
 }
 
 @Entity(tableName = "chat_messages")
@@ -71,5 +72,14 @@ data class VaultInteractionEntity(
     val cardTitle: String = "",
     val modality: String = InteractionModality.TEXT.name,
     val isPinned: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+@Entity(tableName = "voice_clips")
+data class VoiceClipEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val title: String,
+    val filePath: String,
+    val durationMs: Long,
     val createdAt: Long = System.currentTimeMillis()
 )
