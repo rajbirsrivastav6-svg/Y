@@ -1,0 +1,48 @@
+package com.example.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+// Dark Cosmic Palette (inspired by luminous indigo/violet aura)
+val DarkBackground = Color(0xFF0B081B)
+val DarkSurface = Color(0xFF130F2B)
+val DarkSurfaceVariant = Color(0xFF1E1842)
+val DarkSurfaceElevated = Color(0xFF271F54)
+val DarkPrimary = Color(0xFFA78BFA)
+val DarkOnPrimary = Color(0xFF140836)
+val DarkPrimaryContainer = Color(0xFF34256E)
+val DarkOnPrimaryContainer = Color(0xFFEDE7FF)
+val DarkSecondary = Color(0xFF56D8FF)
+val DarkOnSecondary = Color(0xFF002736)
+val DarkSecondaryContainer = Color(0xFF0E3C5C)
+val DarkOnSecondaryContainer = Color(0xFFCFF4FF)
+val DarkTertiary = Color(0xFFF472B6)
+val DarkOnTertiary = Color(0xFF3E0624)
+val DarkOutline = Color(0xFF473E78)
+val DarkOnBackground = Color(0xFFF3F0FF)
+val DarkOnSurface = Color(0xFFF3F0FF)
+val DarkOnSurfaceVariant = Color(0xFFBDB6DF)
+
+// Light Lavender-Pearl Palette
+val LightBackground = Color(0xFFF7F5FF)
+val LightSurface = Color(0xFFFFFFFF)
+val LightSurfaceVariant = Color(0xFFECE8FF)
+val LightSurfaceElevated = Color(0xFFE3DCFF)
+val LightPrimary = Color(0xFF5B3CE0)
+val LightOnPrimary = Color(0xFFFFFFFF)
+val LightPrimaryContainer = Color(0xFFE5DEFF)
+val LightOnPrimaryContainer = Color(0xFF1D0A63)
+val LightSecondary = Color(0xFF0077B6)
+val LightOnSecondary = Color(0xFFFFFFFF)
+val LightSecondaryContainer = Color(0xFFD2F0FF)
+val LightOnSecondaryContainer = Color(0xFF00253A)
+val LightTertiary = Color(0xFFB5179E)
+val LightOnTertiary = Color(0xFFFFFFFF)
+val LightOutline = Color(0xFFC5BBE8)
+val LightOnBackground = Color(0xFF16112E)
+val LightOnSurface = Color(0xFF16112E)
+val LightOnSurfaceVariant = Color(0xFF554D78)
+
+// Shared semantic accents
+val SuccessGreen = Color(0xFF22C55E)
+val WarningAmber = Color(0xFFF59E0B)
+val ErrorRose = Color(0xFFEF4444)

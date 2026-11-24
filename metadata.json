@@ -1,0 +1,6 @@
+{
+  "name": "Luma",
+  "description": "Offline-first voice and smart companion assistant with Dark Mode and local Room vault.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
